@@ -14,7 +14,7 @@ lazy val errorsSummary =
     .settings(
       version := "0.4.0-SNAPSHOT",
       sbtPlugin := true,
-      organization := "org.duhemm",
+      organization := "japgolly",
       name := "sbt-errors-summary",
       description := "sbt plugin to show a summary of compilation messages.",
       scalacOptions ++=

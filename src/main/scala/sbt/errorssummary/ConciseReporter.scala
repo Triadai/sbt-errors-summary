@@ -4,7 +4,7 @@ package errorssummary
 import xsbti.{Position, Reporter, Severity}
 
 import java.io.File
-import scala.Console.{BLUE, CYAN, RED, RESET, UNDERLINED, YELLOW}
+import scala.Console._
 import scala.compat.Platform.EOL
 
 /**
@@ -46,16 +46,57 @@ private class ConciseReporter(logger: Logger,
 
     _problems
       .groupBy(_.position.pfile)
+      .toArray
+      .sortBy(_._1)
       .foreach {
         case (file, inFile) =>
-          val sorted =
-            inFile
-              .sortBy(_.position.pline)
-              .map(showProblemLine)
+          /*
+          def total(s: Severity, colour: String): String = {
+            val n = inFile.count(_.severity == s)
+            if (n == 0) "" else colored(colour, s" ($n)")
+          }
 
-          val line = s"""$file: ${sorted.mkString(", ")}"""
-          log(line)
+//          val f = colored(UNDERLINED + YELLOW, file)
+          val f = colored(UNDERLINED + GREEN, file)
+//          val f = file
+          val w = total(Severity.Warn, YELLOW)
+          val e = total(Severity.Error, BOLD + RED)
+          val d = colored(BOLD + BLUE, s"[${ConciseIntSetFormat.spaced(inFile.iterator.map(_.id))}]")
+//          val d = colored(BOLD + BLUE, inFile.map(_.id).sorted.mkString("[", ",", "]"))
+//          val details = inFile.sortBy(_.position.pline).map(showProblemLine).mkString(", ")
+
+          log(s"$f:$w$e $d")
+          */
+
+          def subset(s: Severity, colour: String): String = {
+            val a = inFile.iterator.filter(_.severity == s).map(_.id).toArray
+            if (a.isEmpty) "" else {
+              val count = colored(colour, s"(${a.length})")
+              val details = colored(BOLD + BLUE, s"[${ConciseIntSetFormat.short(a)}]")
+              s" $count $details"
+            }
+          }
+
+                    val f = colored(UNDERLINED + YELLOW, file)
+//          val f = colored(UNDERLINED, file)
+          //          val f = file
+          val w = subset(Severity.Warn, YELLOW)
+          val e = subset(Severity.Error, BOLD + RED)
+          //          val d = colored(BOLD + BLUE, inFile.map(_.id).sorted.mkString("[", ",", "]"))
+          //          val details = inFile.sortBy(_.position.pline).map(showProblemLine).mkString(", ")
+
+          log(s"$f:$w$e")
       }
+
+    def reportTotal(s: Severity, colour: String, units: String): Unit = {
+      val n = _problems.count(_.severity == s)
+      if (n != 0)
+        log(colored(colour, s"$n $units found."))
+//        log(colored(BOLD + colour, n.toString) + colored(colour, s" $units found."))
+    }
+
+    reportTotal(Severity.Warn, YELLOW_B + BLACK, "warnings")
+    reportTotal(Severity.Error, RED_B, "errors")
   }
 
   override def problems(): Array[xsbti.Problem] =
@@ -117,7 +158,7 @@ private class ConciseReporter(logger: Logger,
    */
   private def prefixed(prefix: String, paragraph: String): String =
     augmentString(paragraph).lines
-      .mkString(colored(BLUE, prefix), EOL + " " * prefix.length, "")
+      .mkString(colored(BOLD + BLUE, prefix), EOL + " " * prefix.length, "")
 
   /**
    * Shows the full error message for `problem`.
@@ -129,7 +170,7 @@ private class ConciseReporter(logger: Logger,
     val file = problem.position.pfile
     val line = problem.position.pline
     val text =
-      s"""${colored(UNDERLINED, file)}:${colored(colorFor(problem),
+      s"""${colored(UNDERLINED + BOLD + YELLOW, file)}:${colored(colorFor(problem),
                                                  line.toString)}:
          |${problem.message}
          |${problem.position.lineContent}
@@ -148,23 +189,23 @@ private class ConciseReporter(logger: Logger,
    */
   private def colorFor(problem: Problem): String =
     problem.severity match {
-      case Severity.Info  => CYAN
-      case Severity.Error => RED
+      case Severity.Info  => BLUE
+      case Severity.Error => BOLD + RED
       case Severity.Warn  => YELLOW
     }
 
-  /**
-   * Shows the line at which `problem` occured and the id of the problem.
-   *
-   * @param problem The problem to show
-   * @return A formatted string that shows the line of the problem and its id.
-   */
-  private def showProblemLine(problem: Problem): String = {
-    val color = colorFor(problem)
-    colored(color, problem.position.pline.toString) + colored(
-      BLUE,
-      s" [${problem.id}]")
-  }
+//  /**
+//   * Shows the line at which `problem` occured and the id of the problem.
+//   *
+//   * @param problem The problem to show
+//   * @return A formatted string that shows the line of the problem and its id.
+//   */
+//  private def showProblemLine(problem: Problem): String = {
+//    val color = colorFor(problem)
+//    colored(color, problem.position.pline.toString) + colored(
+//      BOLD + BLUE,
+//      s" [${problem.id}]")
+//  }
 
   implicit class MyPosition(position: Position) {
     def pfile: String = position.sourceFile.map(showPath).getOrElse("unknown")
