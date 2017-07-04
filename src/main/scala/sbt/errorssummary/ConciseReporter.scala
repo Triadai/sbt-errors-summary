@@ -44,11 +44,10 @@ private class ConciseReporter(logger: Logger,
         else if (hasWarnings(_problems)) logger.warn(line)
         else logger.info(line)
 
-    _problems
-      .groupBy(_.position.pfile)
-      .toArray
-      .sortBy(_._1)
-      .foreach {
+    val problemsByFile = _problems.groupBy(_.position.pfile).toArray
+
+    if (problemsByFile.lengthCompare(1) > 0)
+      problemsByFile.sortBy(_._1).foreach {
         case (file, inFile) =>
           /*
           def total(s: Severity, colour: String): String = {
@@ -88,15 +87,17 @@ private class ConciseReporter(logger: Logger,
           log(s"$f:$w$e")
       }
 
-    def reportTotal(s: Severity, colour: String, units: String): Unit = {
+    def reportTotal(s: Severity, colour: String, unit: String): Unit = {
       val n = _problems.count(_.severity == s)
-      if (n != 0)
+      if (n != 0) {
+        val units = if (n == 1) unit else unit + "s"
         log(colored(colour, s"$n $units found."))
-//        log(colored(BOLD + colour, n.toString) + colored(colour, s" $units found."))
+        //        log(colored(BOLD + colour, n.toString) + colored(colour, s" $units found."))
+      }
     }
 
-    reportTotal(Severity.Warn, YELLOW_B + BLACK, "warnings")
-    reportTotal(Severity.Error, RED_B, "errors")
+    reportTotal(Severity.Warn, YELLOW_B + BLACK, "warning")
+    reportTotal(Severity.Error, RED_B, "error")
   }
 
   override def problems(): Array[xsbti.Problem] =
