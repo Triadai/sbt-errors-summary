@@ -33,6 +33,9 @@ private class ConciseReporter(logger: Logger,
   override def hasWarnings(): Boolean =
     hasWarnings(_problems)
 
+  private def showFile(s: String): String =
+    s.dropWhile(_ == '/')
+
   override def printSummary(): Unit = {
     parent.foreach(_.printSummary())
 
@@ -44,7 +47,7 @@ private class ConciseReporter(logger: Logger,
         else if (hasWarnings(_problems)) logger.warn(line)
         else logger.info(line)
 
-    val problemsByFile = _problems.groupBy(_.position.pfile).toArray
+    val problemsByFile = _problems.groupBy(i => showFile(i.position.pfile)).toArray
 
     if (problemsByFile.lengthCompare(1) > 0)
       problemsByFile.sortBy(_._1).foreach {
@@ -67,24 +70,40 @@ private class ConciseReporter(logger: Logger,
           log(s"$f:$w$e $d")
           */
 
-          def subset(s: Severity, colour: String): String = {
-            val a = inFile.iterator.filter(_.severity == s).map(_.id).toArray
-            if (a.isEmpty) "" else {
-              val count = colored(colour, s"(${a.length})")
-              val details = colored(BOLD + BLUE, s"[${ConciseIntSetFormat.short(a)}]")
-              s" $count $details"
+          val hdrSize = _problems.groupBy(_.severity).valuesIterator.map(_.length.toString.length).max
+          val hdrFmt = s"%${hdrSize}d"
+          val hdrEmpty = " " * hdrSize
+
+          def subset(s: Severity, colour: String): (String, String) = {
+            val a = inFile.iterator.filter(_.severity == s).toArray
+            if (a.isEmpty) (hdrEmpty, "") else {
+              val count = colored(colour, hdrFmt.format(a.length))
+              val details = colored(BOLD + BLUE, s"[${ConciseIntSetFormat.short(a.iterator.map(_.id))}]")
+              val lines = colored(colour, s"[${ConciseIntSetFormat.short(a.iterator.map(_.position.pline))}]")
+              (count, s"$details @ $lines")
             }
           }
 
-                    val f = colored(UNDERLINED + YELLOW, file)
+//                    val f = colored(UNDERLINED + YELLOW, file)
 //          val f = colored(UNDERLINED, file)
           //          val f = file
-          val w = subset(Severity.Warn, YELLOW)
-          val e = subset(Severity.Error, BOLD + RED)
+//          val (w1,w2) = subset(Severity.Warn, YELLOW)
+//          val (e1,e2) = subset(Severity.Error, BOLD + RED)
           //          val d = colored(BOLD + BLUE, inFile.map(_.id).sorted.mkString("[", ",", "]"))
           //          val details = inFile.sortBy(_.position.pline).map(showProblemLine).mkString(", ")
 
-          log(s"$f:$w$e")
+          var first = true
+          def qwe(x: (String, String)): Unit = {
+            val (a, b) = x
+            if (a != hdrEmpty) {
+              val f = if (first) colored(UNDERLINED + YELLOW, file) else " " * file.length
+              log(s"$a $f $b")
+              first = false
+            }
+          }
+
+          qwe(subset(Severity.Error, BOLD + RED))
+          qwe(subset(Severity.Warn, YELLOW))
       }
 
     def reportTotal(s: Severity, colour: String, unit: String): Unit = {
@@ -168,7 +187,7 @@ private class ConciseReporter(logger: Logger,
    * @return The full error message.
    */
   private def showText(problem: Problem): String = {
-    val file = problem.position.pfile
+    val file = showFile(problem.position.pfile)
     val line = problem.position.pline
     val text =
       s"""${colored(UNDERLINED + BOLD + YELLOW, file)}:${colored(colorFor(problem),

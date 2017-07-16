@@ -1,16 +1,19 @@
 package sbt.errorssummary
 
+import scala.collection.immutable.SortedSet
+
 /**
  * Format a set of ints into a concise textual description.
  *
  * Example:
  *    "2, 5, 7-14, 20"
  */
-object ConciseIntSetFormat { // TODO Move into microlibs
+object ConciseIntSetFormat {
 
   def apply(ints: TraversableOnce[Int], sep: String, rangeSep: String): String = {
 
-    val comps = ints.toArray.sorted.foldRight(List.empty[Any])((i, cs) =>
+    val is = (SortedSet.newBuilder[Int] ++= ints).result()
+    val comps = is.foldRight(List.empty[Any])((i, cs) =>
       cs match {
         case (a: Int) :: (b: Int) :: t if i == a - 1 && a == b - 1 =>
           (i, b) :: t
